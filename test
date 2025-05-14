@@ -1,0 +1,152 @@
+/*
+Project: Android Monitoring Tool (Edukasi)
+Fitur:
+1. Mengakses Lokasi (GPS)
+2. Mengambil Foto dari Kamera
+3. Merekam Layar
+Bahasa: Kotlin (utama), dengan integrasi Java jika diperlukan
+*/
+
+// AndroidManifest.xml
+/* Tambahkan ini dalam <manifest> */
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
+<application
+    android:usesCleartextTraffic="true">
+    <activity android:name=".MainActivity">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
+</application>
+
+// res/layout/activity_main.xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <Button
+        android:id="@+id/btnLocation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dapatkan Lokasi" />
+
+    <Button
+        android:id="@+id/btnCamera"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Ambil Foto" />
+
+    <Button
+        android:id="@+id/btnScreen"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Rekam Layar" />
+
+    <ImageView
+        android:id="@+id/imagePreview"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop"
+        android:layout_marginTop="16dp"/>
+</LinearLayout>
+
+// MainActivity.kt
+package com.example.monitoringapp
+
+import android.Manifest
+import android.app.Activity
+import android.app.MediaProjectionManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.location.Location
+import android.location.LocationManager
+import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+
+class MainActivity : AppCompatActivity() {
+    private val PERMISSION_REQUEST = 1
+    private val REQUEST_IMAGE_CAPTURE = 100
+    private val REQUEST_SCREEN_CAPTURE = 101
+    private lateinit var imagePreview: ImageView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        val btnLocation: Button = findViewById(R.id.btnLocation)
+        val btnCamera: Button = findViewById(R.id.btnCamera)
+        val btnScreen: Button = findViewById(R.id.btnScreen)
+        imagePreview = findViewById(R.id.imagePreview)
+
+        requestPermissions()
+
+        btnLocation.setOnClickListener { getLocation() }
+        btnCamera.setOnClickListener { dispatchTakePictureIntent() }
+        btnScreen.setOnClickListener { startScreenCapture() }
+    }
+
+    private fun requestPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        )
+        ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST)
+    }
+
+    private fun getLocation() {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Izin lokasi belum diberikan", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val location: Location? = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        location?.let {
+            val lat = it.latitude
+            val lon = it.longitude
+            Toast.makeText(this, "Latitude: $lat, Longitude: $lon", Toast.LENGTH_LONG).show()
+        } ?: Toast.makeText(this, "Lokasi tidak tersedia", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun dispatchTakePictureIntent() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        if (takePictureIntent.resolveActivity(packageManager) != null) {
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
+        }
+    }
+
+    private fun startScreenCapture() {
+        val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(projectionManager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
+            val imageBitmap = data?.extras?.get("data") as? Bitmap
+            imagePreview.setImageBitmap(imageBitmap)
+        } else if (requestCode == REQUEST_SCREEN_CAPTURE && resultCode == Activity.RESULT_OK) {
+            Toast.makeText(this, "Screen recording dimulai (placeholder)", Toast.LENGTH_SHORT).show()
+            // Implementasi lengkap perekaman layar membutuhkan VirtualDisplay + MediaRecorder/ImageReader
+        }
+    }
+}
